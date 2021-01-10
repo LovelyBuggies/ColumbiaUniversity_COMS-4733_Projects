@@ -234,15 +234,23 @@ class PyBulletSim:
         post_grasp_position = grasp_position+np.array([0, 0, 0.3])
         grasp_success = False
         # ========= PART 2============
-        # TODO: Implement the following grasp sequence:
+        # Implement the following grasp sequence:
         # 1. open gripper
+        self.open_gripper()
         # 2. Move gripper to pre_grasp_position_over_bin
+        self.move_tool(pre_grasp_position_over_bin, gripper_orientation)
         # 3. Move gripper to pre_grasp_position_over_object
+        self.move_tool(pre_grasp_position_over_object, gripper_orientation)
         # 4. Move gripper to grasp_position
+        self.move_tool(grasp_position, gripper_orientation)
         # 5. Close gripper
+        self.close_gripper()
         # 6. Move gripper to post_grasp_position
+        self.move_tool(post_grasp_position, gripper_orientation)
         # 7. Move robot to robot_home_joint_config
+        self.move_joints(self.robot_home_joint_config, speed=1.0)
         # 8. Detect whether or not the object was grasped and return grasp_success
+        grasp_success = self.check_grasp_success()
         # ============================
         return grasp_success
 

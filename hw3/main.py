@@ -38,7 +38,9 @@ def rrt(q_init, q_goal, MAX_ITERS, delta_q, steer_goal_p, env):
 def get_grasp_position_angle(object_id):
     position, grasp_angle = np.zeros((3, 1)), 0
     # ========= PART 2============
-    # TODO: Get position and orientation (yaw in radians) of the gripper for grasping
+    # Get position and orientation (yaw in radians) of the gripper for grasping
+    position, tmp = p.getBasePositionAndOrientation(object_id)
+    grasp_angle = p.getEulerFromQuaternion(tmp)[2]
     # ==================================
     return position, grasp_angle
 
