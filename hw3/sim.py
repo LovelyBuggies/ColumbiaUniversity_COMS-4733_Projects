@@ -186,14 +186,22 @@ class PyBulletSim:
             @param orientation: Target orientation of the end-effector link
         """
         target_joint_state = np.zeros((6,))  # this should contain appropriate joint angle values
-        # ========= TODO: Part 1 ========
+        # ========= Part 1 ========
         # Using inverse kinematics (p.calculateInverseKinematics), find out the target joint configuration of the robot
         # in order to reach the desired end_effector position and orientation
         # HINT: p.calculateInverseKinematics takes in the end effector **link index** and not the **joint index**. You can use 
         #   self.robot_end_effector_link_index for this 
         # HINT: You might want to tune optional parameters of p.calculateInverseKinematics for better performance
         # ===============================
-        self.move_joints(target_joint_state)
+        target_joint_state = p.calculateInverseKinematics(
+            self.robot_body_id,
+            self.robot_end_effector_link_index,
+            position,
+            orientation,
+            maxNumIterations=100,
+            residualThreshold=1e-4,
+        )
+        self.move_joints(target_joint_state, speed)
 
     def robot_go_home(self, speed=0.1):
         self.move_joints(self.robot_home_joint_config, speed)
