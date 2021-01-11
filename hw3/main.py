@@ -5,6 +5,7 @@ import pybullet as p
 import random
 import numpy as np
 import math
+import time
 
 MAX_ITERS = 10000
 delta_q = 0.1
@@ -20,6 +21,70 @@ def visualize_path(q_1, q_2, env, color=[0, 1, 0]):
     p.addUserDebugLine(point_1, point_2, color, 1.0)
 
 
+def rrt_semi_random_sample(q_goal, steer_goal_p):
+    if random.random() < steer_goal_p:
+        return q_goal
+    else:
+        bias = np.random.uniform(-.1, .1, size=len(q_goal)).tolist()
+        return [q_goal[i] + bias[i] for i in range(len(q_goal))]
+
+
+def rrt_nearest(V, q_rand):
+    nearest = V[0]
+    nearest_idx = 0
+    nearest_dist = float("inf")
+    for i, v in enumerate(V):
+        dist_square = sum(np.power(v[j] - q_rand[j], 2) for j in range(len(v)))
+        if dist_square < nearest_dist:
+            nearest, nearest_idx, nearest_dist = v, i, dist_square
+    return nearest, nearest_idx, np.sqrt(nearest_dist)
+
+
+# TODO: I drop the delta_q and use a different metric
+def rtt_steer(q_rand, q_nearest, delta_q):
+    q_new = q_nearest
+    for i in range(len(q_rand)):
+        q_new[i] = (1 - 0.1) * q_nearest[i] + 0.1 * q_rand[i]
+    return q_new
+
+
+def rrt_get_path(adj, q_init_idx, q_goal_idx, visited, path):
+    visited[q_init_idx] = True
+    path.append(q_init_idx)
+    if q_init_idx == q_goal_idx:
+        return True
+
+    for i in adj[q_init_idx]:
+        if not visited[q_init_idx]:
+            if rrt_get_path(adj, i, q_goal_idx, visited, path):
+                return True
+
+    path.pop()
+    return False
+
+
+def rrt_find_path(V, E, q_init_idx, q_goal_idx):
+    return [V[q_init_idx], V[q_goal_idx]]
+    # print("-----------")
+    # for e in E: print(str(e[0]) + " " + str(e[1]))
+
+    # convert edges to adjacent list
+    adj = []
+    for i in range(len(V)):
+        successors = []
+        for e in E:
+            if e[0] == i: successors.append(e[1])
+        adj.append(successors)
+
+    # BFS to find a path
+    visited = [False] * len(adj)
+    path = []
+    if rrt_get_path(adj, q_init_idx, q_goal_idx, visited, path):
+        return [V[i] for i in path]
+    else:
+        return None
+
+
 def rrt(q_init, q_goal, MAX_ITERS, delta_q, steer_goal_p, env):
     """
     :param q_init: initial configuration
@@ -32,6 +97,22 @@ def rrt(q_init, q_goal, MAX_ITERS, delta_q, steer_goal_p, env):
     # ========== PART 3 =========
     # TODO: Implement RRT code here. This function should return a list of joint configurations
     # that the robot should take in order to reach q_goal starting from q_init
+    V, E = [q_init], []
+    for i in range(MAX_ITERS):
+        q_rand = rrt_semi_random_sample(q_goal, steer_goal_p)
+        q_nearest, q_nearest_idx, _ = rrt_nearest(V, q_rand)
+        q_new = rtt_steer(q_rand, q_nearest, delta_q)
+        if not env.check_collision(q_new):
+            V.append(q_new)
+            q_new_idx = len(V) - 1
+            E.append((q_nearest_idx, q_new_idx))
+            if sum(np.power(q_new[j] - q_goal[j], 2) for j in range(len(q_new))) < np.power(delta_q, 2):
+                V.append(q_goal)
+                q_goal_idx = len(V) - 1
+                E.append((q_new_idx, q_goal_idx))
+                path = rrt_find_path(V, E, 0, q_goal_idx)
+                return path
+
     return None
 
 
@@ -110,16 +191,23 @@ if __name__ == "__main__":
                 # TODO: Execute the path while visualizing the location of joint 5 (see Figure 2 in homework manual)
                 # - For visualization, you can use sim.SphereMarker
                 # ===============================================================================
+                for i in range(len(path_conf)):
+                    if i != 0:
+                        env.move_joints(path_conf[i], speed=.01)
+                        # visualize_path(path_conf[i - 1], path_conf[i], env)
                 # ===============================================================================
                 print("Path executed. Dropping the object")
 
                 # TODO: Drop the object
                 # - Hint: open gripper, wait, close gripper
                 # ===============================================================================
+                env.open_gripper()
+                env.close_gripper()
                 # ===============================================================================
 
                 # TODO: Retrace the path to original location
                 # ===============================================================================
+                env.robot_go_home()
                 # ===============================================================================
             p.removeAllUserDebugItems()
 
