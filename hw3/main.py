@@ -196,7 +196,7 @@ if __name__ == "__main__":
                 for i in range(len(path_conf)):
                     if i != 0:
                         env.move_joints(path_conf[i], speed=.01)
-                        # visualize_path(path_conf[i - 1], path_conf[i], env)
+                        visualize_path(path_conf[i - 1], path_conf[i], env)
                 # ===============================================================================
                 print("Path executed. Dropping the object")
 
