@@ -23,9 +23,9 @@ def visualize_path(q_1, q_2, env, color=[0, 1, 0]):
 
 def rrt_semi_random_sample(q_goal, steer_goal_p):
     if random.random() < steer_goal_p:
-        return q_goal
+        return q_goal.copy()
     else:
-        bias = np.random.uniform(-.1, .1, size=len(q_goal)).tolist()
+        bias = np.random.uniform(-np.pi/8, np.pi/8, size=len(q_goal)).tolist()
         return [q_goal[i] + bias[i] for i in range(len(q_goal))]
 
 
@@ -37,36 +37,35 @@ def rrt_nearest(V, q_rand):
         dist_square = sum(np.power(v[j] - q_rand[j], 2) for j in range(len(v)))
         if dist_square < nearest_dist:
             nearest, nearest_idx, nearest_dist = v, i, dist_square
+
     return nearest, nearest_idx, np.sqrt(nearest_dist)
 
 
 # TODO: I drop the delta_q and use a different metric
 def rtt_steer(q_rand, q_nearest, delta_q):
-    q_new = q_nearest
+    q_new = q_nearest.copy()
     for i in range(len(q_rand)):
-        q_new[i] = (1 - 0.1) * q_nearest[i] + 0.1 * q_rand[i]
+        q_new[i] = (1 - 0.2) * q_nearest[i] + 0.2 * q_rand[i]
+
     return q_new
 
 
-def rrt_get_path(adj, q_init_idx, q_goal_idx, visited, path):
-    visited[q_init_idx] = True
+def rrt_get_path(adj, q_init_idx, q_goal_idx, path):
     path.append(q_init_idx)
     if q_init_idx == q_goal_idx:
-        return True
+        return path
 
-    for i in adj[q_init_idx]:
-        if not visited[q_init_idx]:
-            if rrt_get_path(adj, i, q_goal_idx, visited, path):
-                return True
+    for v in adj[q_init_idx]:
+        if v not in path:
+            new_path = rrt_get_path(adj, v, q_goal_idx, path)
+            return new_path
 
-    path.pop()
-    return False
+    return None
 
 
 def rrt_find_path(V, E, q_init_idx, q_goal_idx):
-    return [V[q_init_idx], V[q_goal_idx]]
-    # print("-----------")
-    # for e in E: print(str(e[0]) + " " + str(e[1]))
+    print("-----------")
+    for e in E: print(str(e[0]) + " " + str(e[1]))
 
     # convert edges to adjacent list
     adj = []
@@ -75,14 +74,18 @@ def rrt_find_path(V, E, q_init_idx, q_goal_idx):
         for e in E:
             if e[0] == i: successors.append(e[1])
         adj.append(successors)
+    # for i in range(len(adj)):
+    #     print(str(i) + ":")
+    #     print(adj[i])
 
     # BFS to find a path
-    visited = [False] * len(adj)
-    path = []
-    if rrt_get_path(adj, q_init_idx, q_goal_idx, visited, path):
-        return [V[i] for i in path]
-    else:
-        return None
+    path = rrt_get_path(adj, q_init_idx, q_goal_idx, [])
+    # print("============")
+    # if path is None:
+    #     print("Cannot find a path")
+    # else:
+    #     for p in path: print(p)
+    return None if not path else [V[i] for i in path]
 
 
 def rrt(q_init, q_goal, MAX_ITERS, delta_q, steer_goal_p, env):
@@ -195,7 +198,7 @@ if __name__ == "__main__":
                 # ===============================================================================
                 for i in range(len(path_conf)):
                     if i != 0:
-                        env.move_joints(path_conf[i], speed=.01)
+                        env.move_joints(path_conf[i])
                         visualize_path(path_conf[i - 1], path_conf[i], env)
                 # ===============================================================================
                 print("Path executed. Dropping the object")
@@ -209,7 +212,7 @@ if __name__ == "__main__":
 
                 # TODO: Retrace the path to original location
                 # ===============================================================================
-                env.robot_go_home()
+
                 # ===============================================================================
             p.removeAllUserDebugItems()
 
