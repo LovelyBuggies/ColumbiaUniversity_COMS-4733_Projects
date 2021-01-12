@@ -99,10 +99,10 @@ class PyBulletSim:
 
         # Add obstacles
         self.obstacles = [
-            p.loadURDF('assets/obstacles/block.urdf',
-                       basePosition=[0, 0.65, 0.9],
-                       useFixedBase=True
-                       ),
+            # p.loadURDF('assets/obstacles/block.urdf',
+            #            basePosition=[0, 0.65, 0.9],
+            #            useFixedBase=True
+            #            ),
             p.loadURDF('assets/obstacles/block.urdf',
                        basePosition=[0, 0.65, 0.3],
                        useFixedBase=True
