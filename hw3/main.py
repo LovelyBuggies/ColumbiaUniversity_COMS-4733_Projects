@@ -34,18 +34,19 @@ def rrt_nearest(V, q_rand):
     nearest_idx = 0
     nearest_dist = float("inf")
     for i, v in enumerate(V):
-        dist_square = sum(np.power(v[j] - q_rand[j], 2) for j in range(len(v)))
-        if dist_square < nearest_dist:
-            nearest, nearest_idx, nearest_dist = v, i, dist_square
+        dist = np.sqrt(sum(np.power(q_rand[j] - v[j], 2) for j in range(len(v))))
+        if dist <= nearest_dist:
+            nearest, nearest_idx, nearest_dist = v, i, dist
 
-    return nearest, nearest_idx, np.sqrt(nearest_dist)
+    return nearest, nearest_idx, nearest_dist
 
 
-# TODO: I drop the delta_q and use a different metric
 def rtt_steer(q_rand, q_nearest, delta_q):
     q_new = q_nearest.copy()
+    dist = np.sqrt(sum(np.power(q_rand[j] - q_nearest[j], 2) for j in range(len(q_rand))))
+    ratio = delta_q / dist
     for i in range(len(q_rand)):
-        q_new[i] = (1 - 0.2) * q_nearest[i] + 0.2 * q_rand[i]
+        q_new[i] += ratio * (q_rand[i] - q_nearest[i])
 
     return q_new
 
@@ -58,12 +59,14 @@ def rrt_get_path(adj, q_init_idx, q_goal_idx, path):
     for v in adj[q_init_idx]:
         if v not in path:
             new_path = rrt_get_path(adj, v, q_goal_idx, path)
-            return new_path
+            if new_path is not None:
+                return new_path
 
     return None
 
 
 def rrt_find_path(V, E, q_init_idx, q_goal_idx):
+    # print(q_init_idx)print(q_goal_idx)
     print("-----------")
     for e in E: print(str(e[0]) + " " + str(e[1]))
 
@@ -140,43 +143,43 @@ if __name__ == "__main__":
     # PART 1: Basic robot movement
     # Implement env.move_tool function in sim.py. More details in env.move_tool description
     passed = 0
-    for i in range(num_trials):
-        # Choose a reachable end-effector position and orientation
-        random_position = env._workspace1_bounds[:, 0] + 0.15 + \
-            np.random.random_sample((3)) * (env._workspace1_bounds[:, 1] - env._workspace1_bounds[:, 0] - 0.15)
-        random_orientation = np.random.random_sample((3)) * np.pi / 4 - np.pi / 8
-        random_orientation[1] += np.pi
-        random_orientation = p.getQuaternionFromEuler(random_orientation)
-        marker = sim.SphereMarker(position=random_position, radius=0.03, orientation=random_orientation)
-        # Move tool
-        env.move_tool(random_position, random_orientation)
-        link_state = p.getLinkState(env.robot_body_id, env.robot_end_effector_link_index)
-        link_marker = sim.SphereMarker(link_state[0], radius=0.03, orientation=link_state[1], rgba_color=[0, 1, 0, 0.8])
-        # Test position
-        delta_pos = np.max(np.abs(np.array(link_state[0]) - random_position))
-        delta_orn = np.max(np.abs(np.array(link_state[1]) - random_orientation))
-        if  delta_pos <= 1e-3 and delta_orn <= 1e-3:
-            passed += 1
-        env.step_simulation(1000)
-        # Return to robot's home configuration
-        env.robot_go_home()
-        del marker, link_marker
-    print(f"[Robot Movement] {passed} / {num_trials} cases passed")
+    # for i in range(num_trials):
+    #     # Choose a reachable end-effector position and orientation
+    #     random_position = env._workspace1_bounds[:, 0] + 0.15 + \
+    #         np.random.random_sample((3)) * (env._workspace1_bounds[:, 1] - env._workspace1_bounds[:, 0] - 0.15)
+    #     random_orientation = np.random.random_sample((3)) * np.pi / 4 - np.pi / 8
+    #     random_orientation[1] += np.pi
+    #     random_orientation = p.getQuaternionFromEuler(random_orientation)
+    #     marker = sim.SphereMarker(position=random_position, radius=0.03, orientation=random_orientation)
+    #     # Move tool
+    #     env.move_tool(random_position, random_orientation)
+    #     link_state = p.getLinkState(env.robot_body_id, env.robot_end_effector_link_index)
+    #     link_marker = sim.SphereMarker(link_state[0], radius=0.03, orientation=link_state[1], rgba_color=[0, 1, 0, 0.8])
+    #     # Test position
+    #     delta_pos = np.max(np.abs(np.array(link_state[0]) - random_position))
+    #     delta_orn = np.max(np.abs(np.array(link_state[1]) - random_orientation))
+    #     if  delta_pos <= 1e-3 and delta_orn <= 1e-3:
+    #         passed += 1
+    #     env.step_simulation(1000)
+    #     # Return to robot's home configuration
+    #     env.robot_go_home()
+    #     del marker, link_marker
+    # print(f"[Robot Movement] {passed} / {num_trials} cases passed")
 
     # PART 2: Grasping
     passed = 0
     env.load_gripper()
-    for _ in range(num_trials):
-        object_id = env._objects_body_ids[0]
-        position, grasp_angle = get_grasp_position_angle(object_id)
-        grasp_success = env.execute_grasp(position, grasp_angle)
-
-        # Test for grasping success (this test is a necessary condition, not sufficient):
-        object_z = p.getBasePositionAndOrientation(object_id)[0][2]
-        if object_z >= 0.2:
-            passed += 1
-        env.reset_objects()
-    print(f"[Grasping] {passed} / {num_trials} cases passed")
+    # for _ in range(num_trials):
+    #     object_id = env._objects_body_ids[0]
+    #     position, grasp_angle = get_grasp_position_angle(object_id)
+    #     grasp_success = env.execute_grasp(position, grasp_angle)
+    #
+    #     # Test for grasping success (this test is a necessary condition, not sufficient):
+    #     object_z = p.getBasePositionAndOrientation(object_id)[0][2]
+    #     if object_z >= 0.2:
+    #         passed += 1
+    #     env.reset_objects()
+    # print(f"[Grasping] {passed} / {num_trials} cases passed")
 
     # PART 3: RRT Implementation
     passed = 0
@@ -196,10 +199,12 @@ if __name__ == "__main__":
                 # TODO: Execute the path while visualizing the location of joint 5 (see Figure 2 in homework manual)
                 # - For visualization, you can use sim.SphereMarker
                 # ===============================================================================
+                marker_positions = []
                 for i in range(len(path_conf)):
                     if i != 0:
                         env.move_joints(path_conf[i])
-                        visualize_path(path_conf[i - 1], path_conf[i], env)
+                        marker_positions.append(get_grasp_position_angle(object_id)[0])
+                        sim.SphereMarker(marker_positions[i], radius=0.01)
                 # ===============================================================================
                 print("Path executed. Dropping the object")
 
@@ -212,7 +217,8 @@ if __name__ == "__main__":
 
                 # TODO: Retrace the path to original location
                 # ===============================================================================
-
+                for marker in marker_positions:
+                    del marker
                 # ===============================================================================
             p.removeAllUserDebugItems()
 
