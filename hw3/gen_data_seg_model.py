@@ -12,10 +12,10 @@ if __name__ == "__main__":
     seed(0)
     np.random.seed(0)
 
-    # TODO: setup an appropriate data size
+    # setup an appropriate data size
     #   (appropriate == which you think is good enough for training and testing)
     # ==================================================================================
-    dataset_size = 0
+    dataset_size = 100
     # ===============================================================================
 
     object_shapes = [
