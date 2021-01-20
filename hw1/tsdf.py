@@ -87,7 +87,7 @@ class TSDFVolume:
         # NOTE: prange is used instead of range(...) to take advantage of parallelism.
         for i in prange(voxel_coords.shape[0]):
             for j in range(3):
-                # TODO: compute world_points
+                # compute world_points
                 world_points[i][j] = voxel_coords[i][j] * voxel_size + volume_origin[j]
         return world_points
 
@@ -108,12 +108,7 @@ class TSDFVolume:
             numpy.array [v, ]: new tsdf values for entries in tsdf_old
             numpy.array [v, ]: new weights to be used in the future.
         """
-        # tsdf_new = np.empty_like(tsdf_old, dtype=np.float32)
-        # w_new = np.empty_like(w_old, dtype=np.float32)
-        # for i in prange(len(tsdf_old)):
-        #     # TODO: compute tsdf_new and w_new
-        #     w_new[i] = w_old[i] + observation_weight
-        #     tsdf_new[i] = (w_old[i] * tsdf_old[i] + observation_weight * dist[i]) / w_new[i]
+        # compute tsdf_new and w_new
         w_new = w_old + observation_weight
         tsdf_new = (w_old * tsdf_old + observation_weight * dist) / w_new
         return tsdf_new, w_new
@@ -132,25 +127,27 @@ class TSDFVolume:
         """
         image_height, image_width = depth_image.shape
         color_image = color_image.astype(np.float32)
-        # TODO: Convert voxel grid coordinates to world points
+        # Convert voxel grid coordinates to world points
         cam_pts = self.voxel_to_world(self._volume_origin, self._voxel_coords, self._voxel_size)
-        # TODO: Transform points in the volume to the camera coordinate system. Get voxel_z depth and u, v projections.
+        # Transform points in the volume to the camera coordinate system. Get voxel_z depth and u, v projections.
         cam_pts = transform_point3s(np.linalg.inv(camera_pose), cam_pts)
         # cam_pts = transform_point3s(cam_pts, camera_pose)
         pix_z = cam_pts[:, 2]
         pix = camera_to_image(camera_intrinsic, cam_pts)
         pix_x, pix_y = np.asarray(pix[:, 0], dtype=np.int), np.asarray(pix[:, 1], dtype=np.int)
-        # TODO: Get valid pixels by eliminating pixels not in the image bounds, etc.
+        # Get valid pixels by eliminating pixels not in the image bounds, etc.
         valid_pix = np.logical_and(pix_x >= 0,
                                    np.logical_and(pix_x < image_width,
                                                   np.logical_and(pix_y >= 0,
                                                                  np.logical_and(pix_y < image_height, pix_z > 0))))
-        # TODO: Get depths for valid coordinates u, v from the depth image.
+
+        # Get depths for valid coordinates u, v from the depth image.
         depth_val = np.zeros(pix_x.shape)
         depth_val[valid_pix] = depth_image[pix_y[valid_pix], pix_x[valid_pix]]
+
         # Integrate TSDF
-        # TODO: Filter out zero depth values and cases where observed depth + truncation margin >= voxel_z
-        # TODO: Truncate and normalize
+        # Filter out zero depth values and cases where observed depth + truncation margin >= voxel_z
+        # Truncate and normalize
         depth_diff = depth_val - pix_z  # coarse SDF
         valid_pts = np.logical_and(depth_val > 0, depth_diff >= -self._truncation_margin)
         dist = np.minimum(1, depth_diff / self._truncation_margin)
@@ -160,22 +157,20 @@ class TSDFVolume:
         w_old = self._weight_volume[valid_vox_x, valid_vox_y, valid_vox_z]
         tsdf_vals = self._tsdf_volume[valid_vox_x, valid_vox_y, valid_vox_z]
         valid_dist = dist[valid_pts]
-        # TODO: Find new weight volume and tsdf volume (hint: call helper).
+
+        # Find new weight volume and tsdf volume (hint: call helper).
         tsdf_vol_new, w_new = self.integrate_volume_helper(tsdf_vals, valid_dist, w_old, observation_weight)
         self._weight_volume[valid_vox_x, valid_vox_y, valid_vox_z] = w_new
         self._tsdf_volume[valid_vox_x, valid_vox_y, valid_vox_z] = tsdf_vol_new
 
-        # TODO: Integrate color using old and new weights.
+        # Integrate color using old and new weights.
         old_color = self._color_volume[valid_vox_x, valid_vox_y, valid_vox_z]
         new_color = color_image[pix_y[valid_pts], pix_x[valid_pts]]
-        # for i in prange(len(new_color)):  #  avoid using loop
-        #     new_color[i] = np.minimum(255., (w_old[i] * old_color[i] + observation_weight * new_color[i]) / w_new[i])
-        #
-        # print(np.multiply(w_old, old_color))
         w_old = w_old.reshape((-1, 1))
         w_new = w_new.reshape((-1, 1))
         new_color = np.minimum(255., np.round((np.multiply(w_old, old_color) + observation_weight * new_color) / w_new))
         self._color_volume[valid_vox_x, valid_vox_y, valid_vox_z] = new_color
+
     def get_volume(self):
         """Get the tsdf and color volumes.
 
